@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Heap Sort Visualizer</title>
+<style>
+:root{--bg:#f7f7f5;--fg:#1d1d1f;--card:#fff;--bd:#d8d8d4;--heap:#cfe3ff;--sorted:#bfe8c8;--hl:#ffe08a;--sw:#ffb3a8;--mut:#666;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#17181a;--fg:#eee;--card:#222427;--bd:#3a3d41;--heap:#27456e;--sorted:#245a35;--hl:#7a6420;--sw:#7a3328;--mut:#aaa}}
+:root[data-theme="dark"]{--bg:#17181a;--fg:#eee;--card:#222427;--bd:#3a3d41;--heap:#27456e;--sorted:#245a35;--hl:#7a6420;--sw:#7a3328;--mut:#aaa}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
+main{max-width:760px;margin:0 auto;padding:16px}
+h1{font-size:1.4rem;margin:.2em 0}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px;margin:12px 0}
+input{width:100%;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--fg);font-size:1rem;box-sizing:border-box}
+button{padding:8px 14px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--fg);font-size:.95rem;cursor:pointer}
+button:hover{background:var(--bg)}button.p{background:#2f6fed;color:#fff;border-color:#2f6fed}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center}
+#arr{display:flex;gap:6px;flex-wrap:wrap}
+.b{width:44px;text-align:center;border:1px solid var(--bd);border-radius:8px;padding:6px 0;font-weight:600;background:var(--heap)}
+.b small{display:block;font-weight:400;color:var(--mut);font-size:.7rem}
+.b.s{background:var(--sorted)}.b.h{background:var(--hl)}.b.w{background:var(--sw)}
+#msg{min-height:3em}
+.leg span{display:inline-block;width:12px;height:12px;border-radius:3px;margin:0 4px 0 10px;vertical-align:middle;border:1px solid var(--bd)}
+svg{width:100%;height:auto;display:block}
+svg text{fill:var(--fg);font:600 14px system-ui;text-anchor:middle;dominant-baseline:central}
+</style></head><body><main>
+<h1>Heap Sort Visualizer</h1>
+<div class="card">
+<label for="in">Your array (numbers separated by commas or spaces, max 15)</label>
+<input id="in" value="4, 1, 8, 6, 5, 2, 9">
+<div class="row"><button class="p" id="load">Load</button><button id="rnd">Random</button><span id="err" style="color:#d33"></span></div>
+</div>
+<div class="card">
+<div class="row" style="margin:0 0 8px"><button id="prev">◀ Back</button><button class="p" id="next">Step ▶</button><button id="play">Auto play</button><button id="rst">Reset</button>
+<label>Speed <input type="range" id="spd" min="100" max="1500" value="700" style="width:100px"></label></div>
+<div id="msg"></div>
+<div id="arr"></div>
+<svg id="tree" viewBox="0 0 700 260"></svg>
+<div class="leg" style="font-size:.85rem"><span style="background:var(--heap)"></span>heap<span style="background:var(--hl)"></span>comparing<span style="background:var(--sw)"></span>swapped<span style="background:var(--sorted)"></span>sorted</div>
+</div>
+</main>
+<script>
+let steps=[],k=0,timer=null;
+const $=id=>document.getElementById(id);
+function build(a0){
+  const a=a0.slice(),N=a.length;steps=[];
+  const push=(msg,hl=[],sw=[],n=N)=>steps.push({a:a.slice(),n,hl,sw,msg});
+  function heapify(n,i,tag){
+    while(true){
+      const l=2*i+1,r=2*i+2;
+      if(l>=n){push(`Index ${i} (value ${a[i]}) has no children inside the heap. Stop.`,[i],[],tag);break}
+      let m=l;
+      if(r<n){push(`Compare children of index ${i}: ${a[l]} (idx ${l}) vs ${a[r]} (idx ${r}).`,[i,l,r],[],tag);if(a[r]>a[l])m=r}
+      else push(`Index ${i} has only a left child: ${a[l]} (idx ${l}).`,[i,l],[],tag);
+      if(a[i]>=a[m]){push(`${a[i]} ≥ larger child ${a[m]}. Item fits, stop.`,[i,m],[],tag);break}
+      [a[i],a[m]]=[a[m],a[i]];
+      push(`Swap ${a[m]} with larger child ${a[i]}. Item now at index ${m}.`,[],[i,m],tag);
+      i=m;
+    }
+  }
+  push("Start. Phase 1: build the max-heap (once).");
+  for(let i=Math.floor(N/2)-1;i>=0;i--){push(`Build: sift down index ${i} (value ${a[i]}).`,[i]);heapify(N,i,N)}
+  push("Heap built. Largest is at index 0. Phase 2: swap, shrink, repair.");
+  for(let e=N-1;e>0;e--){
+    [a[0],a[e]]=[a[e],a[0]];
+    push(`Swap top with last heap item (index ${e}). ${a[e]} is now final.`,[],[0,e],e);
+    heapify(e,0,e);
+  }
+  push("Done. Array is sorted.",[],[],0);
+}
+function draw(){
+  const s=steps[k],N=s.a.length;
+  $("msg").textContent=`Step ${k+1}/${steps.length}: `+s.msg;
+  const cls=i=>i>=s.n?"s":s.sw.includes(i)?"w":s.hl.includes(i)?"h":"";
+  $("arr").innerHTML=s.a.map((v,i)=>`<div class="b ${cls(i)}">${v}<small>[${i}]</small></div>`).join("");
+  const col={s:"var(--sorted)",w:"var(--sw)",h:"var(--hl)","":"var(--heap)"};
+  const pos=i=>{const L=Math.floor(Math.log2(i+1)),p=i+1-(1<<L);return[700*(p+.5)/(1<<L),30+L*60]};
+  let g="";
+  for(let i=1;i<N;i++){if(i>=s.n)continue;const[x,y]=pos(i),[px,py]=pos((i-1)>>1);g+=`<line x1="${px}" y1="${py}" x2="${x}" y2="${y}" stroke="var(--bd)" stroke-width="2"/>`}
+  for(let i=0;i<N;i++){const[x,y]=pos(i);g+=`<g opacity="${i>=s.n?.45:1}"><circle cx="${x}" cy="${y}" r="20" fill="${col[cls(i)]}" stroke="var(--bd)"/><text x="${x}" y="${y}">${s.a[i]}</text></g>`}
+  $("tree").innerHTML=g;
+}
+function stop(){clearInterval(timer);timer=null;$("play").textContent="Auto play"}
+function go(d){k=Math.max(0,Math.min(steps.length-1,k+d));draw();if(k==steps.length-1)stop()}
+function load(){
+  stop();const v=$("in").value.split(/[\s,]+/).filter(x=>x!=="").map(Number);
+  if(!v.length||v.some(isNaN)){$("err").textContent="Enter numbers only.";return}
+  if(v.length>15){$("err").textContent="Max 15 numbers.";return}
+  $("err").textContent="";build(v);k=0;draw();
+}
+$("load").onclick=load;$("rst").onclick=()=>{stop();k=0;draw()};
+$("next").onclick=()=>go(1);$("prev").onclick=()=>go(-1);
+$("rnd").onclick=()=>{$("in").value=Array.from({length:8},()=>1+Math.floor(Math.random()*99)).join(", ");load()};
+$("play").onclick=()=>{
+  if(timer){stop();return}
+  if(k>=steps.length-1)k=0;
+  $("play").textContent="Pause";
+  const tick=()=>{go(1);if(timer)timer=setTimeout(tick,+$("spd").value)};
+  timer=setTimeout(tick,0);
+};
+$("in").addEventListener("keydown",e=>{if(e.key==="Enter")load()});
+load();
+</script></body></html>
