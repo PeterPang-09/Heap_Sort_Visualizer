@@ -95,7 +95,7 @@ $("play").onclick=()=>{
   if(timer){stop();return}
   if(k>=steps.length-1)k=0;
   $("play").textContent="Pause";
-  const tick=()=>{go(1);if(timer)timer=setTimeout(tick,+$("spd").value)};
+  const tick=()=>{go(1);if(timer)timer=setTimeout(tick,1600-$("spd").value)};
   timer=setTimeout(tick,0);
 };
 $("in").addEventListener("keydown",e=>{if(e.key==="Enter")load()});
